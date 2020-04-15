@@ -1,5 +1,6 @@
 package au.edu.unsw.infs3634.cryptobag;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -38,23 +39,37 @@ public class MainActivity extends AppCompatActivity {
         mAdapter = new CoinAdapter(this, new ArrayList<Coin>(), mTwoPane);
         mRecyclerView.setAdapter(mAdapter);
 
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("https://api.coinlore.com")
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-        CoinService service = retrofit.create(CoinService.class);
-        Call<CoinLoreResponse> coinsCall = service.getCoins();
-        coinsCall.enqueue(new Callback<CoinLoreResponse>() {
-            @Override
-            public void onResponse(Call<CoinLoreResponse> call, Response<CoinLoreResponse> response) {
-                List<Coin> coins = response.body().getData();
-                mAdapter.setCoins(coins);
+        new GetCoinTask().execute();
+
+    }
+
+    private class GetCoinTask extends AsyncTask<Void, Void, List<Coin>> {
+
+        @Override
+        protected List<Coin> doInBackground(Void... voids) {
+            try {
+                Retrofit retrofit = new Retrofit.Builder()
+                        .baseUrl("https://api.coinlore.com")
+                        .addConverterFactory(GsonConverterFactory.create())
+                        .build();
+                CoinService service = retrofit.create(CoinService.class);
+                Call<CoinLoreResponse> coinsCall = service.getCoins();
+
+                Response<CoinLoreResponse> coinResponse = coinsCall.execute();
+                List<Coin> coins = coinResponse.body().getData();
+                return coins;
+
+            } catch (IOException e) {
+
+                e.printStackTrace();
             }
 
-            @Override
-            public void onFailure(Call<CoinLoreResponse> call, Throwable t) {
+            return null;
+        }
 
-            }
-        });
+        @Override
+        protected void onPostExecute(List<Coin> coins) {
+            mAdapter.setCoins(coins);
+        }
     }
 }

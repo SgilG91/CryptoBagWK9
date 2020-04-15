@@ -2,6 +2,7 @@ package au.edu.unsw.infs3634.cryptobag;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,33 +35,48 @@ public class DetailFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
         if(getArguments().containsKey(ARG_ITEM_ID)) {
-            Retrofit retrofit = new Retrofit.Builder()
-                    .baseUrl("https://api.coinlore.com")
-                    .addConverterFactory(GsonConverterFactory.create())
-                    .build();
-            CoinService service = retrofit.create(CoinService.class);
-            Call<CoinLoreResponse> coinsCall = service.getCoins();
-            coinsCall.enqueue(new Callback<CoinLoreResponse>() {
-                @Override
-                public void onResponse(Call<CoinLoreResponse> call, Response<CoinLoreResponse> response) {
-                    List<Coin> coins = response.body().getData();
-                    for(Coin coin : coins) {
-                        if(coin.getId().equals(getArguments().getString(ARG_ITEM_ID))) {
-                            mCoin = coin;
-                            break;
-                        }
-                    }
-                    updateUi();
-                    DetailFragment.this.getActivity().setTitle(mCoin.getName());
-                }
-
-                @Override
-                public void onFailure(Call<CoinLoreResponse> call, Throwable t) {
-
-                }
-            });
+            new GetCoinTask().execute();
         }
     }
+    private class GetCoinTask extends AsyncTask<Void, Void, List<Coin>> {
+
+        @Override
+        protected List<Coin> doInBackground(Void... voids) {
+            try {
+                Retrofit retrofit = new Retrofit.Builder()
+                        .baseUrl("https://api.coinlore.com")
+                        .addConverterFactory(GsonConverterFactory.create())
+                        .build();
+                CoinService service = retrofit.create(CoinService.class);
+                Call<CoinLoreResponse> coinsCall = service.getCoins();
+
+                Response<CoinLoreResponse> coinResponse = coinsCall.execute();
+                List<Coin> coins = coinResponse.body().getData();
+                return coins;
+
+            } catch (IOException e) {
+
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(List<Coin> coins) {
+            for(Coin coin : coins) {
+                if(coin.getId().equals(getArguments().getString(ARG_ITEM_ID))) {
+                    mCoin = coin;
+                    updateUi();
+                    DetailFragment.this.getActivity().setTitle(mCoin.getName());
+                    break;
+                }
+            }
+          //  mAdapter.setCoins(coins);
+        }
+    }
+
+
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
